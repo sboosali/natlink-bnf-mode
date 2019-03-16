@@ -1,3 +1,20 @@
+
+##################################################
+
+# Compiled
+*.elc
+
+# Packaging
+.cask
+
+# Backup files
+*~
+
+# Undo-tree save-files
+*.~undo-tree
+
+##################################################
+
 # Please do not use this ignore file to define platform specific files.
 #
 # For these purposes create a global .gitignore file, which is a list of rules
@@ -5,6 +22,4 @@
 #
 # https://help.github.com/articles/ignoring-files/#create-a-global-gitignore
 
-*~
-*.elc
-.cask/
+##################################################
