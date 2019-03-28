@@ -1,4 +1,6 @@
-;;; natlink-bnf-mode.el --- Major mode for editing Natlink (EBNF) grammars -*- lexical-binding: t; -*-
+;;; natlink-bnf-mode.el --- Major mode for Natlink (EBNF) grammars -*- lexical-binding: t; -*-
+
+;;==============================================;;
 
 ;; Copyright (C) 2019 Sam Boosalis
 ;; Copyright (C) 2019 Serghei Iakovlev
@@ -11,6 +13,8 @@
 ;; Package-Requires: ((cl-lib "0.5") (pkg-info "0.4") (emacs "24.3"))
 
 ;; This file is not part of GNU Emacs.
+
+;;----------------------------------------------;;
 
 ;;; License
 
@@ -29,6 +33,8 @@
 ;; Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 ;; 02110-1301, USA.
 
+;;==============================================;;
+
 ;;; Commentary:
 
 ;;   GNU Emacs major mode for editing BNF grammars.  Currently this mode
@@ -44,6 +50,8 @@
 ;;
 ;; History: History is tracked in the Git repository rather than in this file.
 ;; See https://github.com/sboosali/natlink-bnf-mode/blob/master/CHANGELOG.org
+
+;;==============================================;;
 
 ;;; Code:
 
@@ -96,10 +104,10 @@ If called interactively or if SHOW-VERSION is non-nil, show the
 version in the echo area and the messages buffer.
 
 The returned string includes both, the version from package.el
-and the library version, if both a present and different.
+and the library version, if both are present and different.
 
-If the version number could not be determined, signal an error,
-if called interactively, or if SHOW-VERSION is non-nil, otherwise
+If the version number could not be determined, signal an error
+if called interactively or if SHOW-VERSION is non-nil, otherwise
 just return nil."
   (interactive (list t))
   (let ((version (pkg-info-version-info 'natlink-bnf-mode)))
@@ -107,11 +115,45 @@ just return nil."
       (message "BNF Mode version: %s" version))
     version))
 
+;;==============================================;;
+
 
 ;;; Specialized rx
 
 (eval-when-compile
+
+  ;;--------------------------------------------;;
+
+  (defvar natlink-bnf-symbols
+
+    '( ";"
+       "="
+       "<"
+       ">"
+       "+"
+       "["
+       "]"
+       "{"
+       "}"
+       "|"
+      )
+
+    "Symbols in the Natlink BNF.")
+
+  ;;--------------------------------------------;;
+
+  (defvar natlink-bnf-keywords
+
+    '( "imported"
+       "exported"
+      )
+
+    "Keywords in the Natlink BNF.")
+
+  ;;--------------------------------------------;;
+
   (defconst natlink-bnf-rx-constituents
+
     `(
       ;; rulename
       (rulename . ,(rx (and
@@ -119,9 +161,14 @@ just return nil."
                         letter
                         (0+ (or "-" alnum))
                         symbol-end)))
-    "Additional special sexps for `natlink-bnf-rx'."))
+      )
+
+    "Additional special sexps for `natlink-bnf-rx'.")
+
+  ;;--------------------------------------------;;
 
   (defmacro natlink-bnf-rx (&rest sexps)
+
      "NATLINK-BNF-specific replacement for `rx'.
 
 In addition to the standard forms of `rx', the following forms
@@ -136,25 +183,41 @@ are available:
       For more see: https://tools.ietf.org/html/rfc5234#section-2.1
 
 See `rx' documentation for more information about REGEXPS param."
+
      (let ((rx-constituents (append natlink-bnf-rx-constituents rx-constituents)))
        (cond ((null sexps)
               (error "No regexp"))
              ((cdr sexps)
               (rx-to-string `(and ,@sexps) t))
              (t
-              (rx-to-string (car sexps) t))))))
+              (rx-to-string (car sexps) t)))))
+
+  ;;--------------------------------------------;;
+
+  ())
+
+;;==============================================;;
 
 
 ;;; Font Locking
 
 (defvar natlink-bnf-font-lock-keywords
   `(
+
+    ;; Terminals: quoted or unquoted
+    (,(natlink-bnf-rx (and 
+                   "\""
+                   (group terminal)
+                   "\""))
+     font-lock-string-face)
+    
     ;; LHS nonterminals
     (,(natlink-bnf-rx (and line-start
                    "<"
                    (group rulename)
                    ">"))
      1 font-lock-function-name-face)
+
     ;; other nonterminals
     (,(natlink-bnf-rx (and "<"
                    (group rulename)
@@ -163,7 +226,7 @@ See `rx' documentation for more information about REGEXPS param."
     ;; "may expand into" symbol
     (,(natlink-bnf-rx (and (0+ space)
                    symbol-start
-                   (group "::=")
+                   (group "=")
                    symbol-end
                    (0+ space)))
      1 font-lock-constant-face)
@@ -173,8 +236,26 @@ See `rx' documentation for more information about REGEXPS param."
                    (group "|")
                    symbol-end
                    (0+ space)))
-     1 font-lock-warning-face))
+     1 font-lock-keyword-face)
+
+    (,(rx "<" (group (or "dgndictation" "dgnletters" "dgnwords")) ">") 1 font-lock-builtin-face)
+
+    )
+
   "Font lock keywords for BNF Mode.")
+
+  ;; '(
+  ;;   ("^#.*"      . 'font-lock-comment-face)       ;; comments at start of line
+  ;;   ("^<.*?>"    . 'font-lock-function-name-face) ;; LHS nonterminals
+  ;;   ("<.*?>"     . 'font-lock-variable-name-face) ;; other nonterminals
+  ;;   ("{.*?}"     . 'font-lock-variable-name-face) ;;
+  ;;   ("="         . 'font-lock-constant-face)      ;; "goes-to" symbol
+  ;;   (";"         . 'font-lock-constant-face)      ;; statement delimiter
+  ;;   ("\|"        . 'font-lock-keyword-face)       ;; "OR" symbol
+  ;;   ("\+"        . 'font-lock-keyword-face)       ;; 
+  ;;   ("\["        . 'font-lock-keyword-face)       ;; 
+  ;;   ("\]"        . 'font-lock-keyword-face)       ;; 
+  ;;  )
 
 
 ;;; Initialization
@@ -232,7 +313,6 @@ See `rx' documentation for more information about REGEXPS param."
 (provide 'natlink-bnf-mode)
 
 ;; Local Variables:
-;; firestarter: ert-run-tests-interactively
 ;; End:
 
 ;;; natlink-bnf-mode.el ends here
